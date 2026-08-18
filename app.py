@@ -4,11 +4,30 @@ import snowflake.connector
 
 st.set_page_config(page_title="Whoop Labs Hardware Tracker", layout="wide")
 
-# --- Authentication ---
+# --- Authentication & Connection ---
+ALLOWED_USERS = [
+    "liat.mayer@whoop.com",
+    # Add your team members here:
+    # "teammate1@whoop.com",
+    # "teammate2@whoop.com",
+]
+
+
+@st.cache_resource
+def get_snowflake_connection():
+    return snowflake.connector.connect(
+        account=st.secrets["snowflake"]["account"],
+        user=st.secrets["snowflake"]["user"],
+        password=st.secrets["snowflake"]["password"],
+        role=st.secrets["snowflake"]["role"],
+        warehouse=st.secrets["snowflake"]["warehouse"],
+        database=st.secrets["snowflake"]["database"],
+        schema=st.secrets["snowflake"]["schema"],
+    )
+
+
 def get_connection():
-    if "snowflake_conn" not in st.session_state:
-        return None
-    return st.session_state["snowflake_conn"]
+    return get_snowflake_connection()
 
 
 def run_query(query):
@@ -34,36 +53,28 @@ def run_command(query):
 
 def login_form():
     st.title("Whoop Labs Hardware Tracker")
-    st.markdown("Log in with your Snowflake credentials to access the tracker.")
+    st.markdown("Enter your Whoop email to access the tracker.")
     with st.form("login"):
-        user = st.text_input("Snowflake Username (email)")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Log In")
+        email = st.text_input("Your Whoop email")
+        submitted = st.form_submit_button("Sign In")
         if submitted:
-            try:
-                conn = snowflake.connector.connect(
-                    account="whoop-prod",
-                    user=user,
-                    password=password,
-                    role="WHOOP_LABS_ROLE",
-                    warehouse="WHOOP_LABS_WH",
-                    database="SCRATCH",
-                    schema="HARDWARE_TRACKER",
-                )
-                st.session_state["snowflake_conn"] = conn
-                st.session_state["user"] = user
+            email_lower = email.strip().lower()
+            if email_lower in [u.lower() for u in ALLOWED_USERS]:
+                st.session_state["user"] = email_lower
                 st.rerun()
-            except Exception as e:
-                st.error(f"Login failed: {e}")
+            elif email_lower.endswith("@whoop.com"):
+                st.session_state["user"] = email_lower
+                st.rerun()
+            else:
+                st.error("Access denied. Only @whoop.com emails are allowed.")
 
 
-if get_connection() is None:
+if "user" not in st.session_state:
     login_form()
     st.stop()
 
 st.sidebar.markdown(f"Logged in as: **{st.session_state.get('user', '')}**")
 if st.sidebar.button("Logout"):
-    st.session_state.pop("snowflake_conn", None)
     st.session_state.pop("user", None)
     st.rerun()
 
@@ -665,3 +676,4 @@ elif page == "Study Planner":
         st.dataframe(forecast, use_container_width=True, hide_index=True)
     else:
         st.info("No upcoming device returns scheduled.")
+
