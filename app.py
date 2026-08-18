@@ -35,12 +35,10 @@ def run_query(query):
     cur = conn.cursor()
     cur.execute("USE WAREHOUSE WHOOP_LABS_WH")
     cur.execute(query)
-    columns = [desc[0] for desc in cur.description] if cur.description else []
-    rows = cur.fetchall()
+    columns = [desc[0] for desc in cur.description]
+    data = cur.fetchall()
     cur.close()
-    if columns:
-        return pd.DataFrame(rows, columns=columns)
-    return pd.DataFrame()
+    return pd.DataFrame(data, columns=columns)
 
 
 def run_command(query):
@@ -205,6 +203,7 @@ if page == "Inventory":
                     edit_condition = editable_dropdown("Condition", "condition_status", "edit_condition", current_value=device_row.get("CONDITION_STATUS", ""))
                     edit_location = editable_dropdown("Location", "location", "edit_location", current_value=device_row.get("CURRENT_LOCATION", ""))
                 edit_holder = editable_dropdown("Current Holder", "holder", "edit_holder", current_value=device_row.get("CURRENT_HOLDER", ""))
+                edit_availability = editable_dropdown("Availability Status", "availability_status", "edit_availability", current_value=device_row.get("AVAILABILITY_STATUS", "Available") or "Available")
                 edit_notes = st.text_area("Notes", value=device_row.get("NOTES", "") or "")
                 save = st.form_submit_button("Save Changes")
                 if save:
@@ -221,7 +220,8 @@ if page == "Inventory":
                         UPDATE SCRATCH.HARDWARE_TRACKER.DEVICES SET
                             DEVICE_TYPE = '{edit_type}', VARIANT = '{edit_variant}', CONFIG = '{edit_config}',
                             FIRMWARE_VERSION = '{edit_firmware}', BATTERY_HEALTH = '{edit_battery}',
-                            CONDITION_STATUS = '{edit_condition}', CURRENT_LOCATION = '{edit_location}',
+                            CONDITION_STATUS = '{edit_condition}', AVAILABILITY_STATUS = '{edit_availability}',
+                            CURRENT_LOCATION = '{edit_location}',
                             CURRENT_HOLDER = '{edit_holder}', NOTES = '{edit_notes}',
                             UPDATED_AT = CURRENT_TIMESTAMP()
                         WHERE DEVICE_ID = '{device_id}'
